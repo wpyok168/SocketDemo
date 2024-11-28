@@ -35,7 +35,7 @@ namespace SocketDemo
         public event Action<string, string> OnFileCompleted;
         public event Action<string, string> OnDataSent;
 
-        public async Task StartAsync(int port=8899)
+        public async Task StartAsync(int port = 8899)
         {
             _listener = new TcpListener(IPAddress.Any, port);
             _listener.Start();
@@ -85,6 +85,9 @@ namespace SocketDemo
                             case "file":
                                 await HandleFileTransferAsync(networkStream, message, clientEndPoint);
                                 break;
+                            case "request_file":
+                                await SendFileAsync(client, message.FileName);
+                                break;
                         }
                     }
                 };
@@ -127,6 +130,38 @@ namespace SocketDemo
                     OnFileCompleted?.Invoke(clientId, message.FileName);
                     _fileProgress.TryRemove(clientId, out _);
                 }
+            };
+        }
+        private async Task SendFileAsync(TcpClient client, string fileName)
+        {
+            var filePath = Path.Combine("FilesToSend", fileName);
+            if (!File.Exists(filePath))
+            {
+                Console.WriteLine($"File {fileName} not found!");
+                return;
+            }
+
+            var fileSize = new FileInfo(filePath).Length;
+            var metadata = new Message { Type = "file", FileName = fileName, FileSize = fileSize };
+            var metadataJson = JsonSerializer.Serialize(metadata);
+            var metadataBuffer = Encoding.UTF8.GetBytes(metadataJson);
+
+            await client.GetStream().WriteAsync(metadataBuffer, 0, metadataBuffer.Length);
+
+            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            {
+                var buffer = new byte[8192];
+                long bytesSent = 0;
+                int bytesRead;
+
+                while ((bytesRead = await fileStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                {
+                    await client.GetStream().WriteAsync(buffer, 0, bytesRead);
+                    bytesSent += bytesRead;
+                    OnFileProgress?.Invoke(client.Client.RemoteEndPoint.ToString(), fileName, bytesSent, fileSize);
+                }
+
+                Console.WriteLine($"File {fileName} sent to {client.Client.RemoteEndPoint.ToString()}.");
             };
         }
 
