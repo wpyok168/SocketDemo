@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -33,6 +34,7 @@ namespace SocketDemo
         /// 文件上传完成事件
         /// </summary>
         public event Action<string, string> OnFileCompleted;
+
         public event Action<string, string> OnDataSent;
 
         public async Task StartAsync(int port = 8899)
@@ -86,7 +88,7 @@ namespace SocketDemo
                                 await HandleFileTransferAsync(networkStream, message, clientEndPoint);
                                 break;
                             case "request_file":
-                                await SendFileAsync(client, message.FileName);
+                                await SendFileAsync(client, message.FilePath);
                                 break;
                         }
                     }
@@ -105,7 +107,9 @@ namespace SocketDemo
 
         private async Task HandleFileTransferAsync(NetworkStream stream, Message message, string clientId)
         {
-            var filePath = Path.Combine("ReceivedFiles", message.FileName);
+            //var filePath = Path.Combine("ReceivedFiles", message.FileName);
+            //Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+            var filePath = message.FilePath ?? Path.Combine("ReceivedFiles", message.FileName);
             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 
             long existingSize = _fileProgress.GetOrAdd(clientId, 0);
@@ -132,17 +136,27 @@ namespace SocketDemo
                 }
             };
         }
-        private async Task SendFileAsync(TcpClient client, string fileName)
+        private async Task SendFileAsync(TcpClient client, string filePath)
         {
-            var filePath = Path.Combine("FilesToSend", fileName);
+            //var filePath = Path.Combine("FilesToSend", fileName);
+            //if (!File.Exists(filePath))
+            //{
+            //    Console.WriteLine($"File {fileName} not found!");
+            //    return;
+            //}
+            //var fileSize = new FileInfo(filePath).Length;
+            //var metadata = new Message { Type = "file", FileName = fileName, FileSize = fileSize };
+            
+
+            var fileName = Path.GetFileName(filePath);
             if (!File.Exists(filePath))
             {
                 Console.WriteLine($"File {fileName} not found!");
                 return;
             }
-
             var fileSize = new FileInfo(filePath).Length;
-            var metadata = new Message { Type = "file", FileName = fileName, FileSize = fileSize };
+            var metadata = new Message { Type = "file", FileName = fileName, FileSize = fileSize, FilePath = filePath };
+
             var metadataJson = JsonSerializer.Serialize(metadata);
             var metadataBuffer = Encoding.UTF8.GetBytes(metadataJson);
 
@@ -179,6 +193,7 @@ namespace SocketDemo
         public string Text { get; set; }
         public string FileName { get; set; }
         public long FileSize { get; set; }
+        public string FilePath { get; set; }
     }
 
 }
