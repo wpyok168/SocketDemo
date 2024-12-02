@@ -158,6 +158,7 @@ namespace SocketDemo
             if (!File.Exists(filePath))
             {
                 Console.WriteLine($"File {fileName} not found!");
+                await SendDataAsync(client, new Message() { Type = "text", Text = "请求文件不存在，请先上传或联系服务器管理员处理" });
                 return;
             }
             var fileSize = new FileInfo(filePath).Length;
