@@ -85,7 +85,7 @@ namespace SocketDemo
                                 break;
 
                             case "file":
-                                await HandleFileTransferAsync(networkStream, message, clientEndPoint);
+                                await HandleFileTransferAsync(networkStream, message, clientEndPoint,client);
                                 break;
                             case "request_file":
                                 await SendFileAsync(client, message.FilePath);
@@ -105,16 +105,21 @@ namespace SocketDemo
             }
         }
 
-        private async Task HandleFileTransferAsync(NetworkStream stream, Message message, string clientId)
+        private async Task HandleFileTransferAsync(NetworkStream stream, Message message, string clientId, TcpClient client)
         {
             //var filePath = Path.Combine("ReceivedFiles", message.FileName);
             //Directory.CreateDirectory(Path.GetDirectoryName(filePath));
             var filePath = message.FilePath ?? Path.Combine("ReceivedFiles", message.FileName);
             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+            if (File.Exists(filePath))
+            {
+                File.Copy(filePath, Path.Combine(Path.GetDirectoryName(filePath), DateTime.Now.ToString("yyyyMMddHHmmss")));
+                File.Delete(filePath);
+            }
 
             long existingSize = _fileProgress.GetOrAdd(clientId, 0);
 
-            using (var fileStream = new FileStream(filePath, FileMode.Append, FileAccess.Write))
+            using (var fileStream = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.Write))
             {
                 while (existingSize < message.FileSize)
                 {
@@ -133,6 +138,7 @@ namespace SocketDemo
                 {
                     OnFileCompleted?.Invoke(clientId, message.FileName);
                     _fileProgress.TryRemove(clientId, out _);
+                    await SendDataAsync(client, new Message() { Type="text", Text="上传完成"});
                 }
             };
         }
@@ -174,11 +180,22 @@ namespace SocketDemo
                     bytesSent += bytesRead;
                     OnFileProgress?.Invoke(client.Client.RemoteEndPoint.ToString(), fileName, bytesSent, fileSize);
                 }
-
+                if (bytesSent == fileSize)
+                {
+                    OnFileCompleted?.Invoke(client.Client.RemoteEndPoint.ToString(), "推送文件完成");
+                    //await SendDataAsync(client, new Message() { Type = "text", Text = "下载完成" });
+                }
                 Console.WriteLine($"File {fileName} sent to {client.Client.RemoteEndPoint.ToString()}.");
             };
         }
-
+        public async Task SendDataAsync(TcpClient client, Message data)
+        {
+            if (!client.Connected) return;
+            string senddata = JsonSerializer.Serialize<Message>(data);
+            var buffer = Encoding.UTF8.GetBytes(senddata);
+            await client.GetStream().WriteAsync(buffer, 0, buffer.Length);
+            OnDataSent?.Invoke(_clients[client], senddata);
+        }
         public async Task SendDataAsync(TcpClient client, string data)
         {
             if (!client.Connected) return;
