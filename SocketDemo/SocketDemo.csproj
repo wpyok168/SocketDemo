@@ -7,7 +7,7 @@
     <ProjectGuid>{A0E1F8CB-6269-48DF-85A3-451AEC3A50F2}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>SocketDemo</RootNamespace>
-    <AssemblyName>SocketDemo</AssemblyName>
+    <AssemblyName>Get _IdentifyingNumber_Server</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
