@@ -113,7 +113,8 @@ namespace SocketDemo
             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
             if (File.Exists(filePath))
             {
-                File.Copy(filePath, Path.Combine(Path.GetDirectoryName(filePath), DateTime.Now.ToString("yyyyMMddHHmmss")));
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath) + "\\Bak");
+                File.Copy(filePath, Path.Combine(Path.GetDirectoryName(filePath) + "\\Bak", DateTime.Now.ToString("yyyyMMddHHmmss")));
                 File.Delete(filePath);
             }
 
